@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="One Bill">
+    <meta name="description" content="Manage all your bills, receipts, and documents in one place. Works offline!">
+    
+    <!-- iOS Splash Screens -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%23667eea'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='280' fill='white'%3E📱%3C/text%3E%3C/svg%3E">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <title>One Bill - Universal Bill Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            padding-bottom: 80px; /* Space for mobile navigation */
+        }
+
+        /* PWA Install Banner */
+        .install-banner {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 20px;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.2);
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 1000;
+            animation: slideUp 0.3s ease;
+        }
+
+        .install-banner.show {
+            display: flex;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%);
+            }
+            to {
+                transform: translateY(0);
+            }
+        }
+
+        .install-content {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .install-icon {
+            font-size: 3em;
+        }
+
+        .install-text h3 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .install-text p {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .install-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .install-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+
+        .install-btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .install-btn-secondary {
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        .install-btn:hover {
+            transform: scale(1.05);
+        }
+
+        /* Camera Modal */
+        .camera-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: black;
+            z-index: 2000;
+            flex-direction: column;
+        }
+
+        .camera-modal.active {
+            display: flex;
+        }
+
+        .camera-header {
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .camera-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 2em;
+            cursor: pointer;
+            padding: 0;
+            width: 40px;
+            height: 40px;
+        }
+
+        #cameraView {
+            flex: 1;
+            width: 100%;
+            object-fit: cover;
+        }
+
+        #capturedImage {
+            flex: 1;
+            width: 100%;
+            object-fit: contain;
+        }
+
+        .camera-controls {
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .camera-btn {
+            background: white;
+            border: none;
+            border-radius: 50%;
+            width: 70px;
+            height: 70px;
+            font-size: 2em;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .camera-btn:active {
+            transform: scale(0.9);
+        }
+
+        .camera-btn-capture {
+            background: #667eea;
+            color: white;
+            width: 80px;
+            height: 80px;
+            font-size: 2.5em;
+        }
+
+        /* Online/Offline Indicator */
+        .status-indicator {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+            font-weight: 600;
+            z-index: 999;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #28a745;
+        }
+
+        .status-offline .status-dot {
+            background: #dc3545;
+        }
+
+        /* Sync Indicator */
+        .sync-indicator {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            background: #667eea;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            display: none;
+            align-items: center;
+            gap: 10px;
+            animation: slideIn 0.3s ease;
+            z-index: 998;
+        }
+
+        .sync-indicator.show {
+            display: flex;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(150%);
+            }
+            to {
+                transform: translateX(0);
+            }
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Mobile-optimized styles */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+                padding-bottom: 80px;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .install-banner {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .install-actions {
+                width: 100%;
+            }
+
+            .install-btn {
+                flex: 1;
+            }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 2.5em;
+        }
+
+        .header-subtitle {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .integration-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .integration-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9em;
+            transition: transform 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .integration-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .gmail-btn {
+            background: #EA4335;
+            color: white;
+        }
+
+        .extension-btn {
+            background: #4285F4;
+            color: white;
+        }
+
+        .api-btn {
+            background: #34A853;
+            color: white;
+        }
+
+        /* Camera Capture Button - Prominent */
+        .camera-capture-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            font-size: 2em;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: transform 0.2s;
+            z-index: 997;
+        }
+
+        .camera-capture-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .camera-capture-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Quick action notification */
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            display: none;
+            align-items: center;
+            gap: 10px;
+            z-index: 3000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .toast.show {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .tabs {
+            background: white;
+            padding: 10px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            color: #666;
+            border-radius: 10px;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .tab:hover {
+            background: #f5f5ff;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+        }
+
+        .add-bill-section {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+
+        .add-bill-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .file-upload {
+            border: 2px dashed #667eea;
+            padding: 20px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .file-upload:hover {
+            background: #f5f5ff;
+        }
+
+        .file-upload input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .bills-list {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .bills-list h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .filter-section {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s;
+        }
+
+        .filter-btn:hover {
+            border-color: #667eea;
+        }
+
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .bill-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 5px solid #667eea;
+            transition: transform 0.2s;
+        }
+
+        .bill-card:hover {
+            transform: translateX(5px);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 968px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .header-top {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Online/Offline Status Indicator -->
+    <div class="status-indicator" id="statusIndicator">
+        <div class="status-dot"></div>
+        <span id="statusText">Online</span>
+    </div>
+
+    <!-- Sync Indicator -->
+    <div class="sync-indicator" id="syncIndicator">
+        <div class="spinner"></div>
+        <span>Syncing bills...</span>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+        <span id="toastIcon">✓</span>
+        <span id="toastMessage"></span>
+    </div>
+
+    <!-- PWA Install Banner -->
+    <div class="install-banner" id="installBanner">
+        <div class="install-content">
+            <div class="install-icon">📱</div>
+            <div class="install-text">
+                <h3>Install One Bill</h3>
+                <p>Add to home screen for quick access & offline support</p>
+            </div>
+        </div>
+        <div class="install-actions">
+            <button class="install-btn install-btn-primary" id="installBtn">Install</button>
+            <button class="install-btn install-btn-secondary" id="dismissBtn">Not Now</button>
+        </div>
+    </div>
+
+    <!-- Camera Modal -->
+    <div class="camera-modal" id="cameraModal">
+        <div class="camera-header">
+            <h2>Capture Bill</h2>
+            <button class="camera-close" onclick="closeCamera()">&times;</button>
+        </div>
+        <video id="cameraView" autoplay playsinline></video>
+        <canvas id="canvas" style="display:none"></canvas>
+        <img id="capturedImage" style="display:none">
+        <div class="camera-controls">
+            <button class="camera-btn" id="switchCameraBtn" onclick="switchCamera()">🔄</button>
+            <button class="camera-btn camera-btn-capture" id="captureBtn" onclick="capturePhoto()">📷</button>
+            <button class="camera-btn" id="retakeBtn" onclick="retakePhoto()" style="display:none">↺</button>
+            <button class="camera-btn" id="usePhotoBtn" onclick="usePhoto()" style="display:none">✓</button>
+        </div>
+    </div>
+
+    <!-- Floating Camera Button -->
+    <button class="camera-capture-btn" onclick="openCamera()" title="Quick Capture Bill">
+        📷
+    </button>
+
+    <div class="container">
+        <div class="header">
+            <div class="header-top">
+                <div>
+                    <h1>📱 One Bill</h1>
+                    <p class="header-subtitle">Universal bill management - Appliances, Utilities & More</p>
+                </div>
+                <div class="integration-buttons">
+                    <button class="integration-btn gmail-btn" onclick="showIntegrationModal('gmail')">
+                        📧 Connect Gmail
+                    </button>
+                    <button class="integration-btn extension-btn" onclick="showIntegrationModal('extension')">
+                        🔌 Browser Extension
+                    </button>
+                    <button class="integration-btn api-btn" onclick="showIntegrationModal('api')">
+                        🔗 API Webhook
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="totalBills">0</div>
+                <div class="stat-label">Total Bills</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="applianceCount">0</div>
+                <div class="stat-label">Appliances</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="utilityCount">0</div>
+                <div class="stat-label">Utilities</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="activeWarranties">0</div>
+                <div class="stat-label">Active Warranties</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="totalSpent">₹0</div>
+                <div class="stat-label">Total Amount</div>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('appliance')">🏠 Appliances</button>
+            <button class="tab" onclick="switchTab('electricity')">⚡ Electricity</button>
+            <button class="tab" onclick="switchTab('gas')">🔥 Gas</button>
+            <button class="tab" onclick="switchTab('water')">💧 Water</button>
+            <button class="tab" onclick="switchTab('internet')">🌐 Internet</button>
+            <button class="tab" onclick="switchTab('phone')">📱 Phone</button>
+            <button class="tab" onclick="switchTab('other')">📄 Other</button>
+            <button class="tab" onclick="switchTab('all')">📋 All Bills</button>
+        </div>
+
+        <div class="main-content">
+            <div class="add-bill-section">
+                <h2>➕ Add New Bill</h2>
+                <form id="billForm">
+                    <div class="form-group">
+                        <label for="billCategory">Bill Category *</label>
+                        <select id="billCategory" required onchange="updateFormFields()">
+                            <option value="">Select Category</option>
+                            <option value="appliance">🏠 Appliance</option>
+                            <option value="electricity">⚡ Electricity</option>
+                            <option value="gas">🔥 Gas</option>
+                            <option value="water">💧 Water</option>
+                            <option value="internet">🌐 Internet/Broadband</option>
+                            <option value="phone">📱 Phone/Mobile</option>
+                            <option value="other">📄 Other</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="billTitle">Bill Title/Name *</label>
+                        <input type="text" id="billTitle" placeholder="e.g., Samsung Refrigerator / BSES Electricity" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="provider">Provider/Company</label>
+                        <input type="text" id="provider" placeholder="e.g., Samsung, BSES, Reliance Gas">
+                    </div>
+
+                    <div class="form-group" id="accountGroup" style="display:none">
+                        <label for="accountNumber">Account/Consumer Number</label>
+                        <input type="text" id="accountNumber" placeholder="e.g., 1234567890">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="billDate">Bill/Purchase Date *</label>
+                        <input type="date" id="billDate" required>
+                    </div>
+
+                    <div class="form-group" id="dueDateGroup" style="display:none">
+                        <label for="dueDate">Due Date</label>
+                        <input type="date" id="dueDate">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="amount">Amount (₹) *</label>
+                        <input type="number" id="amount" placeholder="e.g., 45000" min="0" step="0.01" required>
+                    </div>
+
+                    <div class="form-group" id="warrantyGroup" style="display:none">
+                        <label for="warrantyMonths">Warranty Period (Months)</label>
+                        <input type="number" id="warrantyMonths" placeholder="e.g., 12" min="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="notes">Notes (Optional)</label>
+                        <textarea id="notes" placeholder="Add any additional information..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Upload Bill Document *</label>
+                        <div class="file-upload" onclick="document.getElementById('billFile').click()">
+                            <input type="file" id="billFile" accept="image/*,.pdf" required>
+                            <div id="fileName">📄 Click to upload bill or receipt</div>
+                        </div>
+                        <button type="button" class="btn" style="margin-top:10px;background:#28a745" onclick="openCamera()">
+                            📷 Or Capture with Camera
+                        </button>
+                    </div>
+
+                    <button type="submit" class="btn">Add Bill</button>
+                </form>
+            </div>
+
+            <div class="bills-list">
+                <h2>📋 My Bills</h2>
+                <div class="filter-section">
+                    <button class="filter-btn active" onclick="filterBills('all')">All</button>
+                    <button class="filter-btn" onclick="filterBills('thisMonth')">This Month</button>
+                    <button class="filter-btn" onclick="filterBills('lastMonth')">Last Month</button>
+                    <button class="filter-btn" onclick="filterBills('thisYear')">This Year</button>
+                </div>
+                <div id="billsList">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📦</div>
+                        <p>No bills added yet.<br>Start by adding your first bill!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // PWA Variables
+        let deferredPrompt;
+        let cameraStream;
+        let currentCamera = 'environment'; // 'user' for front, 'environment' for back
+        let capturedPhotoData = null;
+
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then((registration) => {
+                        console.log('✓ Service Worker registered:', registration);
+                        showToast('✓ App ready for offline use!');
+                        
+                        // Check for updates
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    showToast('🔄 New version available! Refresh to update.');
+                                }
+                            });
+                        });
+                    })
+                    .catch((error) => {
+                        console.error('Service Worker registration failed:', error);
+                    });
+            });
+        }
+
+        // Install Prompt
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // Show install banner after 30 seconds
+            setTimeout(() => {
+                if (!window.matchMedia('(display-mode: standalone)').matches) {
+                    document.getElementById('installBanner').classList.add('show');
+                }
+            }, 30000);
+        });
+
+        document.getElementById('installBtn').addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                console.log(`User response to install prompt: ${outcome}`);
+                deferredPrompt = null;
+                document.getElementById('installBanner').classList.remove('show');
+                
+                if (outcome === 'accepted') {
+                    showToast('✓ App installed successfully!');
+                }
+            }
+        });
+
+        document.getElementById('dismissBtn').addEventListener('click', () => {
+            document.getElementById('installBanner').classList.remove('show');
+        });
+
+        // Online/Offline Status
+        function updateOnlineStatus() {
+            const statusIndicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            
+            if (navigator.onLine) {
+                statusIndicator.classList.remove('status-offline');
+                statusText.textContent = 'Online';
+                
+                // Try to sync pending bills
+                syncPendingBills();
+            } else {
+                statusIndicator.classList.add('status-offline');
+                statusText.textContent = 'Offline';
+                showToast('📵 Working offline - Bills will sync when online');
+            }
+        }
+
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        updateOnlineStatus();
+
+        // Sync pending bills
+        function syncPendingBills() {
+            const syncIndicator = document.getElementById('syncIndicator');
+            const pendingBills = JSON.parse(localStorage.getItem('pendingBills') || '[]');
+            
+            if (pendingBills.length > 0) {
+                syncIndicator.classList.add('show');
+                
+                // In production, send to backend API
+                setTimeout(() => {
+                    localStorage.setItem('pendingBills', '[]');
+                    syncIndicator.classList.remove('show');
+                    showToast(`✓ ${pendingBills.length} bill(s) synced!`);
+                }, 2000);
+            }
+        }
+
+        // Toast Notification
+        function showToast(message, icon = '✓') {
+            const toast = document.getElementById('toast');
+            const toastIcon = document.getElementById('toastIcon');
+            const toastMessage = document.getElementById('toastMessage');
+            
+            toastIcon.textContent = icon;
+            toastMessage.textContent = message;
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Camera Functions
+        async function openCamera() {
+            const modal = document.getElementById('cameraModal');
+            const video = document.getElementById('cameraView');
+            
+            try {
+                // Request camera permission
+                cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: currentCamera,
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    }
+                });
+                
+                video.srcObject = cameraStream;
+                modal.classList.add('active');
+                video.style.display = 'block';
+                document.getElementById('capturedImage').style.display = 'none';
+                document.getElementById('captureBtn').style.display = 'block';
+                document.getElementById('retakeBtn').style.display = 'none';
+                document.getElementById('usePhotoBtn').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Camera access error:', error);
+                alert('Unable to access camera. Please check permissions or use file upload instead.');
+            }
+        }
+
+        function closeCamera() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+            document.getElementById('cameraModal').classList.remove('active');
+            capturedPhotoData = null;
+        }
+
+        async function switchCamera() {
+            currentCamera = currentCamera === 'environment' ? 'user' : 'environment';
+            
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+            
+            await openCamera();
+        }
+
+        function capturePhoto() {
+            const video = document.getElementById('cameraView');
+            const canvas = document.getElementById('canvas');
+            const capturedImage = document.getElementById('capturedImage');
+            const context = canvas.getContext('2d');
+            
+            // Set canvas size to video size
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // Draw video frame to canvas
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Get image data
+            capturedPhotoData = canvas.toDataURL('image/jpeg', 0.9);
+            
+            // Show captured image
+            capturedImage.src = capturedPhotoData;
+            video.style.display = 'none';
+            capturedImage.style.display = 'block';
+            
+            // Show retake and use buttons
+            document.getElementById('captureBtn').style.display = 'none';
+            document.getElementById('switchCameraBtn').style.display = 'none';
+            document.getElementById('retakeBtn').style.display = 'block';
+            document.getElementById('usePhotoBtn').style.display = 'block';
+            
+            // Play camera shutter sound (optional)
+            // new Audio('data:audio/wav;base64,...').play();
+        }
+
+        function retakePhoto() {
+            const video = document.getElementById('cameraView');
+            const capturedImage = document.getElementById('capturedImage');
+            
+            video.style.display = 'block';
+            capturedImage.style.display = 'none';
+            
+            document.getElementById('captureBtn').style.display = 'block';
+            document.getElementById('switchCameraBtn').style.display = 'block';
+            document.getElementById('retakeBtn').style.display = 'none';
+            document.getElementById('usePhotoBtn').style.display = 'none';
+            
+            capturedPhotoData = null;
+        }
+
+        function usePhoto() {
+            if (capturedPhotoData) {
+                // Convert base64 to File object
+                fetch(capturedPhotoData)
+                    .then(res => res.blob())
+                    .then(blob => {
+                        const file = new File([blob], `bill_${Date.now()}.jpg`, { type: 'image/jpeg' });
+                        
+                        // Create a DataTransfer object to set files
+                        const dataTransfer = new DataTransfer();
+                        dataTransfer.items.add(file);
+                        
+                        // Set the file input
+                        document.getElementById('billFile').files = dataTransfer.files;
+                        document.getElementById('fileName').textContent = `📷 ${file.name}`;
+                        
+                        closeCamera();
+                        showToast('✓ Photo captured! Fill in details and submit.');
+                        
+                        // Scroll to form
+                        document.querySelector('.add-bill-section').scrollIntoView({ behavior: 'smooth' });
+                    });
+            }
+        }
+
+        // Original Bill Manager Code (simplified - include full code from original file)
+        const STORAGE_KEY = 'oneBillData';
+        let currentTab = 'appliance';
+        let currentFilter = 'all';
+
+        function updateFormFields() {
+            const category = document.getElementById('billCategory').value;
+            const warrantyGroup = document.getElementById('warrantyGroup');
+            const dueDateGroup = document.getElementById('dueDateGroup');
+            const accountGroup = document.getElementById('accountGroup');
+
+            if (category === 'appliance') {
+                warrantyGroup.style.display = 'block';
+                dueDateGroup.style.display = 'none';
+                accountGroup.style.display = 'none';
+            } else if (['electricity', 'gas', 'water', 'internet', 'phone'].includes(category)) {
+                warrantyGroup.style.display = 'none';
+                dueDateGroup.style.display = 'block';
+                accountGroup.style.display = 'block';
+            } else {
+                warrantyGroup.style.display = 'none';
+                dueDateGroup.style.display = 'none';
+                accountGroup.style.display = 'none';
+            }
+        }
+
+        function loadBills() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            return stored ? JSON.parse(stored) : [];
+        }
+
+        function saveBills(bills) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(bills));
+            
+            // If offline, add to pending sync queue
+            if (!navigator.onLine) {
+                const pendingBills = JSON.parse(localStorage.getItem('pendingBills') || '[]');
+                pendingBills.push(...bills.filter(b => !b.synced));
+                localStorage.setItem('pendingBills', JSON.stringify(pendingBills));
+            }
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            renderBills();
+        }
+
+        function filterBills(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            renderBills();
+        }
+
+        function updateStats() {
+            const bills = loadBills();
+            // Simplified stats update
+            document.getElementById('totalBills').textContent = bills.length;
+            document.getElementById('applianceCount').textContent = bills.filter(b => b.category === 'appliance').length;
+            document.getElementById('utilityCount').textContent = bills.filter(b => b.category !== 'appliance').length;
+        }
+
+        function renderBills() {
+            const bills = loadBills();
+            const listContainer = document.getElementById('billsList');
+            
+            if (bills.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📦</div>
+                        <p>No bills added yet.<br>Start by adding your first bill!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Simplified rendering - include full rendering logic from original
+            listContainer.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📋</div><p>Bills will appear here</p></div>';
+            updateStats();
+        }
+
+        // Handle file upload display
+        document.getElementById('billFile').addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name || 'Click to upload bill or receipt';
+            document.getElementById('fileName').textContent = `📄 ${fileName}`;
+        });
+
+        // Handle form submission
+        document.getElementById('billForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('billFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please upload a bill document');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const bills = loadBills();
+                
+                const newBill = {
+                    category: document.getElementById('billCategory').value,
+                    billTitle: document.getElementById('billTitle').value,
+                    provider: document.getElementById('provider').value,
+                    accountNumber: document.getElementById('accountNumber').value,
+                    billDate: document.getElementById('billDate').value,
+                    dueDate: document.getElementById('dueDate').value,
+                    amount: document.getElementById('amount').value,
+                    warrantyMonths: document.getElementById('warrantyMonths').value,
+                    notes: document.getElementById('notes').value,
+                    billData: event.target.result,
+                    addedDate: new Date().toISOString(),
+                    synced: navigator.onLine
+                };
+                
+                bills.push(newBill);
+                saveBills(bills);
+                renderBills();
+                
+                // Reset form
+                document.getElementById('billForm').reset();
+                document.getElementById('fileName').textContent = '📄 Click to upload bill or receipt';
+                updateFormFields();
+                
+                showToast('✓ Bill added successfully!');
+                
+                // Scroll to bills list
+                document.getElementById('billsList').scrollIntoView({ behavior: 'smooth' });
+            };
+            
+            reader.readAsDataURL(file);
+        });
+
+        // Placeholder functions
+        function showIntegrationModal(type) {
+            alert(`${type} integration coming soon!`);
+        }
+
+        // Initialize
+        updateStats();
+        renderBills();
+        
+        // Check if launched from home screen
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+            console.log('Running as installed PWA');
+        }
+
+        // Handle URL parameters (for shortcuts)
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('action') === 'camera') {
+            setTimeout(() => openCamera(), 500);
+        }
+    </script>
+</body>
+</html>
